@@ -32,6 +32,7 @@ class common_debian_package_command(Command):
         self.force_x_python3_version = False
         self.allow_virtualenv_install_location = False
         self.sign_results = False
+        self.with_dh_addons = ''
 
         # deprecated options
         self.default_distribution = None
@@ -68,6 +69,7 @@ class common_debian_package_command(Command):
         self.with_python3 = str_to_bool(self.with_python3)
         self.no_python2_scripts = str_to_bool(self.no_python2_scripts)
         self.no_python3_scripts = str_to_bool(self.no_python3_scripts)
+        self.with_dh_addons = self.with_dh_addons.split(',')
         if self.maintainer is not None:
             # Get the locale specifying the encoding in sys.argv
             import locale, codecs
@@ -220,5 +222,6 @@ class common_debian_package_command(Command):
             no_python3_scripts = self.no_python3_scripts,
             force_x_python3_version=self.force_x_python3_version,
             allow_virtualenv_install_location=self.allow_virtualenv_install_location,
+            with_dh_addons = self.with_dh_addons,
         )
         return debinfo

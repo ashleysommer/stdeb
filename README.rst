@@ -631,6 +631,8 @@ To pass these commands to sdist_dsc when calling bdist_deb, do this::
   --setup-env-vars                     environment variables passed to
                                        setup.py
   --udev-rules                         file with rules to install to udev
+  --with-dh-addons                     takes a comma separated list of debhelper
+                                       add-ons to include in the rules file
 
 ====================================== =========================================
 

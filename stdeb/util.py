@@ -710,6 +710,7 @@ class DebianInfo:
                  no_python3_scripts = None,
                  force_x_python3_version=False,
                  allow_virtualenv_install_location=False,
+                 with_dh_addons=[],
                  ):
         if cfg_files is NotGiven: raise ValueError("cfg_files must be supplied")
         if module_name is NotGiven: raise ValueError(
@@ -1048,6 +1049,10 @@ class DebianInfo:
         if with_python3:
             sequencer_with.append('python3')
         num_binary_packages = len(sequencer_with)
+
+        # Add extra debhelper add-ons to rules file
+        for dh_addon in with_dh_addons:
+            sequencer_with.append(dh_addon)
 
         no_script_lines=[]
 
