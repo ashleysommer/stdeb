@@ -1460,7 +1460,7 @@ RULES_MAIN = """\
 
 RULES_OVERRIDE_INSTALL_TARGET = """
 override_dh_auto_install:
-    dh_auto_install
+	dh_auto_install
 %(scripts_cleanup)s
 """
 
