@@ -1,20 +1,16 @@
-from __future__ import print_function
+# -*- coding: utf-8 -*-
+#
 import sys, os, shutil, subprocess
-try:
-    # python 2.x
-    from ConfigParser import SafeConfigParser
-except ImportError as err:
-    # python 3.x
-    from configparser import SafeConfigParser
 from distutils.util import strtobool
 from distutils.fancy_getopt import FancyGetopt, translate_longopt
-from stdeb.util import stdeb_cmdline_opts, stdeb_cmd_bool_opts
-from stdeb.util import expand_sdist_file, apply_patch
-from stdeb import log
+from stdeb3.util import stdeb_cmdline_opts, stdeb_cmd_bool_opts
+from stdeb3.util import expand_sdist_file, apply_patch
+from stdeb3 import log
 
 from pkg_resources import Requirement, Distribution
 
-class OptObj: pass
+class OptObj:
+    pass
 
 def runit(cmd,usage):
     if cmd not in ['sdist_dsc','bdist_deb']:
@@ -117,7 +113,7 @@ def runit(cmd,usage):
     if cmd=='bdist_deb':
         extra_args.append('bdist_deb')
 
-    args = [sys.executable,'setup.py','--command-packages','stdeb.command',
+    args = [sys.executable,'setup.py','--command-packages','stdeb3.command',
             'sdist_dsc','--dist-dir=%s'%abs_dist_dir,
             '--use-premade-distfile=%s'%os.path.abspath(sdist_file)]+extra_args
 

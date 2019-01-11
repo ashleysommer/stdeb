@@ -1,10 +1,11 @@
-from distutils.core import Command
-from stdeb.command.common import common_debian_package_command
+# -*- coding: utf-8 -*-
+#
+from stdeb3.command.common import CommonDebianPackageCommand
 
-from stdeb.util import build_dsc, stdeb_cmdline_opts, \
+from stdeb3.util import build_dsc, stdeb_cmdline_opts, \
      stdeb_cmd_bool_opts, stdeb_cfg_options
 
-class debianize(common_debian_package_command):
+class debianize(CommonDebianPackageCommand):
     description = "distutils command to create a debian directory"
 
     user_options = stdeb_cmdline_opts + stdeb_cfg_options
@@ -23,3 +24,5 @@ class debianize(common_debian_package_command):
                   repackaged_dirname,
                   debian_dir_only=True,
                   )
+
+__all__ = ['debianize']

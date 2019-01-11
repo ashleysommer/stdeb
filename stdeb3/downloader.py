@@ -1,21 +1,20 @@
-from __future__ import print_function
+# -*- coding: utf-8 -*-
+#
 import os
-try:
-    # Python 2.x
-    import xmlrpclib
-except ImportError:
-    # Python 3.x
-    import xmlrpc.client as xmlrpclib
+from xmlrpc.client import ServerProxy
 from functools import partial
-import requests
 import hashlib
 import warnings
-import stdeb
-from stdeb.transport import RequestsTransport
 
-myprint=print
+try:
+    import requests
+except ImportError:
+    raise RuntimeError("python3-requests is not installed. Please install it.")
 
-USER_AGENT = 'pypi-install/%s ( https://github.com/astraw/stdeb )'%stdeb.__version__
+import stdeb3
+from stdeb3.transport import RequestsTransport
+
+USER_AGENT = 'pypi-install/%s ( https://github.com/ashleysommer/stdeb3 )'%stdeb3.__version__
 
 def find_tar_gz(package_name, pypi_url = 'https://pypi.python.org/pypi',
                 verbose=0, release=None):
@@ -23,21 +22,21 @@ def find_tar_gz(package_name, pypi_url = 'https://pypi.python.org/pypi',
     transport.user_agent = USER_AGENT
     if pypi_url.startswith('https://'):
         transport.use_https = True
-    pypi = xmlrpclib.ServerProxy(pypi_url, transport=transport)
+    pypi = ServerProxy(pypi_url, transport=transport)
 
     download_url = None
     expected_md5_digest = None
 
     if verbose >= 2:
-        myprint( 'querying PyPI (%s) for package name "%s"' % (pypi_url,
-                                                               package_name) )
+        print('querying PyPI (%s) for package name "%s"' % (pypi_url,
+                                                            package_name))
 
     show_hidden=True
     all_releases = pypi.package_releases(package_name,show_hidden)
     if release is not None:
         # A specific release is requested.
         if verbose >= 2:
-            myprint( 'found all available releases: %s' % (', '.join(all_releases),) )
+            print('found all available releases: %s' % (', '.join(all_releases),))
 
         if release not in all_releases:
             raise ValueError('your desired release %r is not among available '
@@ -51,7 +50,7 @@ def find_tar_gz(package_name, pypi_url = 'https://pypi.python.org/pypi',
                 default_releases,all_releases))
         default_release = default_releases[0]
         if verbose >= 2:
-            myprint( 'found default release: %s' % (', '.join(default_releases),) )
+            print('found default release: %s' % (', '.join(default_releases),))
 
         version = default_release
 
@@ -101,25 +100,25 @@ def get_source_tarball(package_name,verbose=0,allow_unsafe_download=False,
             actual_md5_digest = md5sum(fname)
             if actual_md5_digest == expected_md5_digest:
                 if verbose >= 1:
-                    myprint( 'Download URL: %s' % download_url )
-                    myprint( 'File "%s" already exists with correct checksum.' % fname )
+                    print('Download URL: %s' % download_url )
+                    print('File "%s" already exists with correct checksum.' % fname )
                 return fname
             else:
                 raise ValueError('File "%s" exists but has wrong checksum.'%fname)
     if verbose >= 1:
-        myprint( 'downloading %s' % download_url )
+        print('downloading %s' % download_url )
     headers = {'User-Agent': USER_AGENT }
     r = requests.get(download_url, headers=headers)
     r.raise_for_status()
     package_tar_gz = r.content
     if verbose >= 1:
-        myprint( 'done downloading %d bytes.' % ( len(package_tar_gz), ) )
+        print('done downloading %d bytes.' % (len(package_tar_gz), ))
     if expected_md5_digest is not None:
         m = hashlib.md5()
         m.update(package_tar_gz)
         actual_md5_digest = m.hexdigest()
         if verbose >= 2:
-            myprint( 'md5:   actual %s\n     expected %s' % (actual_md5_digest,
+            print('md5:   actual %s\n     expected %s' % (actual_md5_digest,
                                                              expected_md5_digest))
         if actual_md5_digest != expected_md5_digest:
             raise ValueError('actual and expected md5 digests do not match')
@@ -127,6 +126,6 @@ def get_source_tarball(package_name,verbose=0,allow_unsafe_download=False,
         warnings.warn('no md5 digest found -- cannot verify source file')
 
     fd = open(fname,mode='wb')
-    fd.write( package_tar_gz )
+    fd.write(package_tar_gz)
     fd.close()
     return fname

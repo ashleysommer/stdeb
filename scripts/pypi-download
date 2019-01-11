@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 from optparse import OptionParser
-from stdeb.downloader import myprint, get_source_tarball
+from stdeb3.downloader import get_source_tarball
+
 
 def main():
     usage = '%prog PACKAGE_NAME [options]'
@@ -17,7 +18,7 @@ def main():
                       help='allow unsafe downloads')
     (options, args) = parser.parse_args()
     if len(args) != 1:
-        myprint('need exactly one PACKAGE_NAME',file=sys.stderr)
+        print('need exactly one PACKAGE_NAME',file=sys.stderr)
         parser.print_help()
         sys.exit(1)
 
@@ -26,7 +27,8 @@ def main():
     tarball_fname = get_source_tarball(package_name,verbose=options.verbose,
                                        release=options.release,
                                        allow_unsafe_download=options.allow_unsafe_download)
-    myprint('OK: %s' % tarball_fname)
+    print('OK: %s' % tarball_fname)
+
 
 if __name__=='__main__':
     main()

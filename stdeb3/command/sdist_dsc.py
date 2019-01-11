@@ -1,15 +1,16 @@
-import sys, os, shutil, tempfile
+# -*- coding: utf-8 -*-
+#
+import os, shutil, tempfile
 
-from stdeb import log
-from stdeb.util import expand_sdist_file, recursive_hardlink
-from stdeb.util import build_dsc, stdeb_cmdline_opts, \
+from stdeb3 import log
+from stdeb3.util import expand_sdist_file, recursive_hardlink
+from stdeb3.util import build_dsc, stdeb_cmdline_opts, \
      stdeb_cmd_bool_opts, stdeb_cfg_options
-from stdeb.util import repack_tarball_with_debianized_dirname
-from stdeb.command.common import common_debian_package_command
+from stdeb3.util import repack_tarball_with_debianized_dirname
+from stdeb3.command.common import CommonDebianPackageCommand
 
-__all__ = ['sdist_dsc']
 
-class sdist_dsc(common_debian_package_command):
+class sdist_dsc(CommonDebianPackageCommand):
     description = "distutils command to create a debian source distribution"
 
     user_options = stdeb_cmdline_opts + [
@@ -21,7 +22,7 @@ class sdist_dsc(common_debian_package_command):
 
     def initialize_options(self):
         self.use_premade_distfile = None
-        common_debian_package_command.initialize_options(self)
+        super(sdist_dsc, self).initialize_options()
 
     def run(self):
         debinfo = self.get_debinfo()
@@ -143,3 +144,6 @@ class sdist_dsc(common_debian_package_command):
 
         for rmdir in cleanup_dirs:
             shutil.rmtree(rmdir)
+
+
+__all__ = ['sdist_dsc']

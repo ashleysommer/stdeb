@@ -1,9 +1,7 @@
 import os, glob
-import stdeb.util as util
+import stdeb3.util as util
 
 from distutils.core import Command
-
-__all__ = ['install_deb']
 
 class install_deb(Command):
     description = 'distutils command to install debian binary package'
@@ -35,3 +33,6 @@ class install_deb(Command):
             # define system command to execute (install .deb binary pkg)
             syscmd = ['dpkg','--install',target_deb]
             util.process_command(syscmd)
+
+
+__all__ = ['install_deb']

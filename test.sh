@@ -97,7 +97,7 @@ tar xzf $SOURCE_TARBALL
 cd $SOURCE_TARBALL_DIR
 which python
 python -c "import sys; print('sys.version',sys.version)"
-python setup.py --command-packages=stdeb.command sdist_dsc
+python setup.py --command-packages=stdeb3.command sdist_dsc
 cd deb_dist/$DEBSOURCE
 dpkg-buildpackage -rfakeroot -uc -us
 cd ../..

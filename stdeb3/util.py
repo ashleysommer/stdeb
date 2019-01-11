@@ -1,18 +1,12 @@
-#
+# -*- coding: utf-8 -*-
 # This module contains most of the code of stdeb.
 #
 import re, sys, os, shutil, select
-import codecs
-try:
-    # Python 2.x
-    import ConfigParser
-except ImportError:
-    # Python 3.x
-    import configparser as ConfigParser
+import configparser
 import subprocess
 import tempfile
-import stdeb
-from stdeb import log, __version__ as __stdeb_version__
+import stdeb3
+from stdeb3 import log, __version__ as __stdeb_version__
 
 if hasattr(os,'link'):
     link_func = os.link
@@ -25,19 +19,17 @@ __all__ = ['DebianInfo','build_dsc','expand_tarball','expand_zip',
            'apply_patch','repack_tarball_with_debianized_dirname',
            'expand_sdist_file','stdeb_cfg_options']
 
-DH_MIN_VERS = '7'       # Fundamental to stdeb >= 0.4
-DH_IDEAL_VERS = '7.4.3' # fixes Debian bug 548392
+DH_MIN_VERS = '9'        # Fundamental to stdeb >= 0.4
+DH_IDEAL_VERS = '9.20150101'
 
-PYTHON_ALL_MIN_VERS = '2.6.6-3'
+PYTHON_ALL_MIN_VERS = '2.7.9-1'  # This is the version in Debian Jessie (oldstable)
+PYTHON3_ALL_MIN_VERS = '3.4.2-2'  # This is the version in Debian Jessie (oldstable)
 
-try:
-    # Python 2.x
-    from exceptions import Exception
-except ImportError:
-    # Python 3.x
+class CalledProcessError(Exception):
     pass
-class CalledProcessError(Exception): pass
-class CantSatisfyRequirement(Exception): pass
+
+class CantSatisfyRequirement(Exception):
+    pass
 
 def check_call(*popenargs, **kwargs):
     retcode = subprocess.call(*popenargs, **kwargs)
@@ -45,13 +37,8 @@ def check_call(*popenargs, **kwargs):
         return
     raise CalledProcessError(retcode)
 
-if sys.version_info[0]==2:
-    help_str_py2='If True, build package for python 2. (Default=True).'
-    help_str_py3='If True, build package for python 3. (Default=False).'
-else:
-    assert sys.version_info[0]==3
-    help_str_py2='If True, build package for python 2. (Default=False).'
-    help_str_py3='If True, build package for python 3. (Default=True).'
+help_str_py2 = "If True, build package for python 2. (Default=False)."
+help_str_py3 = "If True, build package for python 3. (Default=True)."
 
 stdeb_cmdline_opts = [
     ('dist-dir=', 'd',
@@ -94,10 +81,8 @@ stdeb_cmdline_opts = [
     ('guess-conflicts-provides-replaces=',None,
      'If True, attempt to guess Conflicts/Provides/Replaces in debian/control '
      'based on apt-cache output. (Default=False).'),
-    ('with-python2=',None,
-     help_str_py2),
-    ('with-python3=',None,
-     help_str_py3),
+    ('with-python2=',None, help_str_py2),
+    ('with-python3=',None, help_str_py3),
     ('no-python2-scripts=',None,
      'If True, do not install scripts for python 2. (Default=False).'),
     ('no-python3-scripts=',None,
@@ -116,9 +101,9 @@ stdeb_cmdline_opts = [
 # These should be settable as distutils command options, but in case
 # we want to support other packaging methods, they should also be
 # settable outside distutils. Consequently, we keep the ability to
-# parse ConfigParser files (specified with --extra-cfg-file). TODO:
+# parse `configparser` files (specified with --extra-cfg-file). TODO:
 # Also, some (most, in fact) of the above options should also be
-# settable in the ConfigParser file.
+# settable in the `configparser` file.
 
 stdeb_cfg_options = [
     # With defaults
@@ -181,7 +166,9 @@ stdeb_cmd_bool_opts = [
     'sign-results',
     ]
 
-class NotGiven: pass
+
+class NotGiven:
+    pass
 
 def process_command(args, cwd=None):
     if not isinstance(args, (list, tuple)):
@@ -596,7 +583,7 @@ def parse_vals(cfg,section,option):
     """parse comma separated values in debian control file style from .cfg"""
     try:
         vals = cfg.get(section,option)
-    except ConfigParser.NoSectionError as err:
+    except configparser.NoSectionError as err:
         if section != 'DEFAULT':
             vals = cfg.get('DEFAULT',option)
         else:
@@ -672,7 +659,7 @@ def check_cfg_files(cfg_files,module_name):
     example.
     """
 
-    cfg = ConfigParser.SafeConfigParser()
+    cfg = configparser.ConfigParser()
     cfg.read(cfg_files)
     if cfg.has_section(module_name):
         section_items = cfg.items(module_name)
@@ -737,10 +724,10 @@ class DebianInfo:
         if len(cfg_files):
             check_cfg_files(cfg_files,module_name)
 
-        cfg = ConfigParser.SafeConfigParser(cfg_defaults)
+        cfg = configparser.ConfigParser(cfg_defaults)
         for cfg_file in cfg_files:
-            with codecs.open( cfg_file, mode='r', encoding='utf-8') as fd:
-                cfg.readfp(fd)
+            with open(cfg_file, mode='r', encoding='utf-8') as fd:
+                cfg.read_file(fd, source=cfg_file)
 
         if sdist_dsc_command is not None:
             # Allow distutils commands to override config files (this lets
@@ -799,9 +786,9 @@ class DebianInfo:
         build_deps = ['dh-python']
         if use_setuptools:
             if with_python2:
-                build_deps.append('python-setuptools (>= 0.6b3)')
+                build_deps.append('python-setuptools (>= 5.5.1-1)')
             if with_python3:
-                build_deps.append('python3-setuptools')
+                build_deps.append('python3-setuptools (>= 5.5.1-1)')
         if setup_requires is not None and len(setup_requires):
             build_deps.extend(
                 get_deb_depends_from_setuptools_requires(setup_requires))
@@ -818,7 +805,7 @@ class DebianInfo:
 
             self.architecture3 = 'any'
             if with_python3:
-                build_deps.append('python3-all-dev')
+                build_deps.append('python3-all-dev (>= %s)'%PYTHON3_ALL_MIN_VERS)
             depends3.append('${shlibs:Depends}')
 
         else:
@@ -828,7 +815,7 @@ class DebianInfo:
 
             self.architecture3 = 'all'
             if with_python3:
-                build_deps.append('python3-all')
+                build_deps.append('python3-all (>= %s)'%PYTHON3_ALL_MIN_VERS)
 
         self.copyright_file = parse_val(cfg,module_name,'Copyright-File')
         self.mime_file = parse_val(cfg,module_name,'MIME-File')
@@ -1188,7 +1175,7 @@ def build_dsc(debinfo,
               remove_expanded_source_dir=0,
               debian_dir_only=False,
               sign_dsc=False,
-              ):
+              check_depends=True):
     """make debian source package"""
     #    A. Find new dirname and delete any pre-existing contents
 
@@ -1253,8 +1240,8 @@ def build_dsc(debinfo,
 
     #    A. debian/changelog
     changelog = CHANGELOG_FILE%debinfo.__dict__
-    with codecs.open( os.path.join(debian_dir,'changelog'),
-                 mode='w', encoding='utf-8') as fd:
+    with open(os.path.join(debian_dir,'changelog'),
+              mode='w', encoding='utf-8') as fd:
         fd.write(changelog)
 
     #    B. debian/control
@@ -1263,8 +1250,8 @@ def build_dsc(debinfo,
     else:
         debinfo.uploaders = ''
     control = CONTROL_FILE%debinfo.__dict__
-    with codecs.open( os.path.join(debian_dir,'control'),
-                      mode='w', encoding='utf-8') as fd:
+    with open(os.path.join(debian_dir,'control'),
+              mode='w', encoding='utf-8') as fd:
         fd.write(control)
 
     #    C. debian/rules
@@ -1273,14 +1260,14 @@ def build_dsc(debinfo,
 
     rules = rules.replace('        ','\t')
     rules_fname = os.path.join(debian_dir,'rules')
-    with codecs.open( rules_fname,
-                      mode='w', encoding='utf-8') as fd:
+    with open(rules_fname,
+              mode='w', encoding='utf-8') as fd:
         fd.write(rules)
     os.chmod(rules_fname,0o755)
 
     #    D. debian/compat
-    fd = open( os.path.join(debian_dir,'compat'), mode='w')
-    fd.write('7\n')
+    fd = open(os.path.join(debian_dir,'compat'), mode='w')
+    fd.write('%s\n'%str(DH_MIN_VERS))
     fd.close()
 
     #    E. debian/package.mime
@@ -1356,33 +1343,45 @@ def build_dsc(debinfo,
         finally:
             shutil.rmtree(tmp_dir)
 
-    if 1:
+    if check_depends:
+        build_deps = str(debinfo.build_depends).split(',')
         # check versions of debhelper and python-all
-        debhelper_version_str = get_version_str('debhelper')
-        if len(debhelper_version_str)==0:
-            log.warn('This version of stdeb requires debhelper >= %s, but you '
-                     'do not have debhelper installed. '
-                     'Could not check compatibility.'%DH_MIN_VERS)
-        else:
-            if not dpkg_compare_versions(
+        if 'debhelper' in build_deps:
+            debhelper_version_str = get_version_str('debhelper')
+            if len(debhelper_version_str)==0:
+                log.warn('This version of stdeb requires debhelper >= %s, but you '
+                         'do not have debhelper installed. '
+                         'Could not check compatibility.'%DH_MIN_VERS)
+            elif not dpkg_compare_versions(
                 debhelper_version_str, 'ge', DH_MIN_VERS ):
                 log.warn('This version of stdeb requires debhelper >= %s. '
-                         'Use stdeb 0.3.x to generate source packages '
+                         'Use stdeb 0.8.x to generate source packages '
                          'compatible with older versions of debhelper.'%(
                     DH_MIN_VERS,))
-
-        python_defaults_version_str = get_version_str('python-all')
-        if len(python_defaults_version_str)==0:
-            log.warn('This version of stdeb requires python-all >= %s, '
-                     'but you do not have this package installed. '
-                     'Could not check compatibility.'%PYTHON_ALL_MIN_VERS)
-        else:
-            if not dpkg_compare_versions(
+        if "python-all" in build_deps or 'python-all-dev' in build_deps:
+            python_defaults_version_str = get_version_str('python-all')
+            if len(python_defaults_version_str)==0:
+                log.warn('This version of stdeb requires python-all >= %s, '
+                         'but you do not have this package installed. '
+                         'Could not check compatibility.'%PYTHON_ALL_MIN_VERS)
+            elif not dpkg_compare_versions(
                 python_defaults_version_str, 'ge', PYTHON_ALL_MIN_VERS):
                 log.warn('This version of stdeb requires python-all >= %s. '
                          'Use stdeb 0.6.0 or older to generate source packages '
                          'that use python-support.'%(
                     PYTHON_ALL_MIN_VERS,))
+        if "python3-all" in build_deps or 'python3-all-dev' in build_deps:
+            python3_defaults_version_str = get_version_str('python3-all')
+            if len(python3_defaults_version_str)==0:
+                log.warn('This version of stdeb requires python3-all >= %s, '
+                         'but you do not have this package installed. '
+                         'Could not check compatibility.'%PYTHON3_ALL_MIN_VERS)
+            elif not dpkg_compare_versions(
+                python3_defaults_version_str, 'ge', PYTHON3_ALL_MIN_VERS):
+                log.warn('This version of stdeb requires python3-all >= %s. '
+                         'Use stdeb 0.6.0 or older to generate source packages '
+                         'that use python-support.'%(
+                    PYTHON3_ALL_MIN_VERS,))
 
     #    D. restore debianized tree
     os.rename(fullpath_repackaged_dirname+'.debianized',
@@ -1420,7 +1419,7 @@ Maintainer: %(maintainer)s
 %(uploaders)sSection: %(debian_section)s
 Priority: optional
 Build-Depends: %(build_depends)s
-Standards-Version: 3.9.1
+Standards-Version: 3.9.8
 %(source_stanza_extras)s
 
 %(control_py2_stanza)s

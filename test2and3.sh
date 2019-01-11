@@ -20,11 +20,11 @@ fi
 # check that stdeb is actually installed
 cd test_data # do test in path without stdeb source
 if [ "$DO_PY2" = true ]; then
-    ${PY2EXE} -c "import stdeb; print stdeb.__version__,stdeb.__file__" || export DO_PY2=false
+    ${PY2EXE} -c "import stdeb3; print stdeb3.__version__,stdeb3.__file__" || export DO_PY2=false
 fi
 
 if [ "$DO_PY3" = true ]; then
-    ${PY3EXE} -c "import stdeb; print(stdeb.__version__,stdeb.__file__)" || export DO_PY3=false
+    ${PY3EXE} -c "import stdeb3; print(stdeb3.__version__,stdeb3.__file__)" || export DO_PY3=false
 fi
 cd ..
 
@@ -68,7 +68,7 @@ EOF
 
         cd test_data/simple_pkg
         IFS=,
-        ${PYTHON} setup.py --command-packages stdeb.command sdist_dsc ${M3} bdist_deb
+        ${PYTHON} setup.py --command-packages stdeb3.command sdist_dsc ${M3} bdist_deb
         unset IFS
         cd ../..
     done
@@ -88,11 +88,11 @@ if [ "$DO_PY2" = true ]; then
 
     # test the "debianize" command
     rm -rf debian
-    ${PY2EXE} setup.py --command-packages stdeb.command debianize
+    ${PY2EXE} setup.py --command-packages stdeb3.command debianize
     rm -rf debian
 
     # test the "sdist_dsc" and "bdist_deb" commands
-    ${PY2EXE} setup.py --command-packages stdeb.command sdist_dsc --with-python2=true --with-python3=false bdist_deb
+    ${PY2EXE} setup.py --command-packages stdeb3.command sdist_dsc --with-python2=true --with-python3=false bdist_deb
     cd ../..
 else
     echo "skipping Python 2 test"
@@ -100,25 +100,17 @@ fi
 
 
 if [ "$DO_PY3" = true ]; then
-    # Due to http://bugs.python.org/issue9561 (fixed in Py 3.2) we skip this test in 3.0 and 3.1.
-    ${PY3EXE} -c "import sys; ec=0 if sys.version_info[1]>=2 else 1; sys.exit(ec)"  && rc=$? || rc=$?
+  echo "using Python 3 at ${PY3EXE}"
+  cd test_data/py3_only_pkg
 
-    if [ "$rc" == 0 ]; then
+  # test the "debianize" command
+  rm -rf debian
+  ${PY3EXE} setup.py --command-packages stdeb3.command debianize
+  rm -rf debian
 
-      echo "using Python 3 at ${PY3EXE}"
-      cd test_data/py3_only_pkg
-
-      # test the "debianize" command
-      rm -rf debian
-      ${PY3EXE} setup.py --command-packages stdeb.command debianize
-      rm -rf debian
-
-      # test the "sdist_dsc" and "bdist_deb" commands
-      ${PY3EXE} setup.py --command-packages stdeb.command sdist_dsc --with-python3=true --with-python2=false bdist_deb
-      cd ../..
-    else
-      echo "skipping Python >= 3.2 test"
-    fi
+  # test the "sdist_dsc" and "bdist_deb" commands
+  ${PY3EXE} setup.py --command-packages stdeb3.command sdist_dsc --with-python3=true --with-python2=false bdist_deb
+  cd ../..
 else
     echo "skipping Python 3 test"
 fi

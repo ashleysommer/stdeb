@@ -1,13 +1,15 @@
-import sys, os, shutil
+# -*- coding: utf-8 -*-
+#
+import os
 
-from stdeb import log
+from stdeb3 import log
 from distutils.core import Command
 from distutils.errors import DistutilsModuleError
 
-from stdeb.util import DebianInfo, build_dsc, stdeb_cmdline_opts, \
+from stdeb3.util import DebianInfo, build_dsc, stdeb_cmdline_opts, \
      stdeb_cmd_bool_opts, stdeb_cfg_options
 
-class common_debian_package_command(Command):
+class CommonDebianPackageCommand(Command):
     def initialize_options (self):
         self.patch_already_applied = 0
         self.remove_expanded_source_dir = 0
@@ -20,13 +22,8 @@ class common_debian_package_command(Command):
         self.debian_version = None
         self.no_backwards_compatibility = None
         self.guess_conflicts_provides_replaces = None
-        if sys.version_info[0]==2:
-            self.with_python2 = 'True'
-            self.with_python3 = 'False'
-        else:
-            assert sys.version_info[0]==3
-            self.with_python2 = 'False'
-            self.with_python3 = 'True'
+        self.with_python2 = 'False'
+        self.with_python3 = 'True'
         self.no_python2_scripts = 'False'
         self.no_python3_scripts = 'False'
         self.force_x_python3_version = False
@@ -47,6 +44,10 @@ class common_debian_package_command(Command):
 
     def finalize_options(self):
         def str_to_bool(mystr):
+            if mystr is None:
+                raise ValueError('bool string "%s" is None'%mystr)
+            if isinstance(mystr, bool):
+                return mystr
             if mystr.lower() == 'false':
                 return False
             elif mystr.lower() == 'true':
@@ -74,17 +75,11 @@ class common_debian_package_command(Command):
             # Get the locale specifying the encoding in sys.argv
             import locale, codecs
             fs_enc = codecs.lookup(locale.getpreferredencoding()).name
-            if hasattr(os,'fsencode'): # this exists only in Python 3
-                m = os.fsencode(self.maintainer) # convert to original raw bytes
-
-                # Now, convert these raw bytes into unicode.
-                m = m.decode(fs_enc) # Set your locale if you get errors here
-
-                self.maintainer = m
-            else:
-                # Python 2
-                if hasattr(self.maintainer,'decode'):
-                    self.maintainer = self.maintainer.decode(fs_enc)
+            #os.fsencode exists in python >= 3.2
+            m = os.fsencode(self.maintainer) # convert to original raw bytes
+            # Now, convert these raw bytes into unicode.
+            m = m.decode(fs_enc) # Set your locale if you get errors here
+            self.maintainer = m
 
     def get_debinfo(self):
         ###############################################
@@ -225,3 +220,6 @@ class common_debian_package_command(Command):
             with_dh_addons = self.with_dh_addons,
         )
         return debinfo
+
+
+__all__ = ['CommonDebianPackageCommand']

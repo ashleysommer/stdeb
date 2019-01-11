@@ -1,20 +1,18 @@
-# http://travis-ci.org/#!/astraw/stdeb
+# http://travis-ci.org/#!/ashleysommer/stdeb
 language: python
 python:
     - "2.7_with_system_site_packages"
-    - "3.2_with_system_site_packages"
+    - "3.4_with_system_site_packages"
 before_install:
     - sudo apt-get update
-    - sudo apt-get install python-all-dev python3-all-dev debhelper python-setuptools python3-setuptools apt-file python-requests
-    - wget http://debs.strawlab.org/precise/python3-requests_2.3.0-0ads1_all.deb -O python3-requests_2.3.0-0ads1_all.deb
-    - sudo dpkg -i python3-requests_2.3.0-0ads1_all.deb
+    - sudo apt-get install python-all-dev python3-all-dev debhelper python-setuptools python3-setuptools apt-file python-requests python3-requests
 install:
-    - which python
+    - which python3
     - which pip
     - pip --version
-    - python -c "import sys; print(sys.version)"
+    - python3 -c "import sys; print(sys.version)"
     # Build a .deb file and then install it.
-    - python setup.py --command-packages=stdeb.command bdist_deb
+    - python3 setup.py --command-packages=stdeb3.command bdist_deb
     - for f in deb_dist/*.deb; do echo; echo $f; dpkg --contents $f; done
     - sudo dpkg -i deb_dist/*.deb
 script:

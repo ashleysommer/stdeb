@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 """
 A replacement transport for Python xmlrpc library.
 
@@ -10,19 +11,13 @@ Usage:
     >>> s.demo.sayHello()
     Hello!
 """
-try:
-    import xmlrpc.client as xmlrpc
-except ImportError:
-    import xmlrpclib as xmlrpc
-
+from xmlrpc.client import Transport, ProtocolError
 import requests
 import requests.utils
-
-import sys
 from distutils.version import StrictVersion
 import warnings
 
-class RequestsTransport(xmlrpc.Transport):
+class RequestsTransport(Transport):
     """
     Drop in Transport for xmlrpclib that uses Requests instead of httplib
     """
@@ -32,7 +27,7 @@ class RequestsTransport(xmlrpc.Transport):
     # override this if you'd like to https
     use_https = False
 
-    def request(self, host, handler, request_body, verbose):
+    def request(self, host, handler, request_body, verbose=False):
         """
         Make an xmlrpc request.
         """
@@ -58,8 +53,8 @@ class RequestsTransport(xmlrpc.Transport):
             try:
                 resp.raise_for_status()
             except requests.RequestException as e:
-                raise xmlrpc.ProtocolError(url, resp.status_code, 
-                                                        str(e), resp.headers)
+                raise ProtocolError(url, resp.status_code,
+                                    str(e), resp.headers)
             else:
                 return self.parse_response(resp)
 
@@ -71,18 +66,12 @@ class RequestsTransport(xmlrpc.Transport):
 
         if hasattr(resp,'text'):
             # modern requests will do this for us
-            text = resp.text # this is unicode(py2)/str(py3)
+            text = resp.text  # this is a str
         else:
-
             encoding = requests.utils.get_encoding_from_headers(resp.headers)
             if encoding is None:
                 encoding='utf-8' # FIXME: what to do here?
-
-            if sys.version_info[0]==2:
-                text = unicode(resp.content, encoding, errors='replace')
-            else:
-                assert sys.version_info[0]==3
-                text = str(resp.content, encoding, errors='replace')
+            text = resp.content.decode(encoding, errors='replace')
         p.feed(text)
         p.close()
         return u.close()

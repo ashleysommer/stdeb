@@ -1,9 +1,9 @@
+# -*- coding: utf-8 -*-
+#
 import os
-import stdeb.util as util
+import stdeb3.util as util
 
 from distutils.core import Command
-
-__all__ = ['bdist_deb']
 
 class bdist_deb(Command):
     description = 'distutils command to create debian binary package'
@@ -55,3 +55,4 @@ class bdist_deb(Command):
 
         util.process_command(syscmd,cwd=target_dirs[0])
 
+__all__ = ['bdist_deb']
