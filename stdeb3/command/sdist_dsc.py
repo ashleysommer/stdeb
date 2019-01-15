@@ -137,9 +137,11 @@ class sdist_dsc(CommonDebianPackageCommand):
                   self.dist_dir,
                   repackaged_dirname,
                   orig_sdist=source_tarball,
-                  patch_posix = self.patch_posix,
+                  patch_posix=self.patch_posix,
                   remove_expanded_source_dir=self.remove_expanded_source_dir,
                   sign_dsc=self.sign_results,
+                  sign_key=self.sign_key,
+                  check_depends=True,
                   )
 
         for rmdir in cleanup_dirs:

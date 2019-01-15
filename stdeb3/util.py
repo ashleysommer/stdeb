@@ -69,15 +69,6 @@ stdeb_cmdline_opts = [
      'remove the expanded source directory'),
     ('ignore-install-requires', 'i',
      'ignore the requirements from requires.txt in the egg-info directory'),
-    ('pycentral-backwards-compatibility=',None,
-     'This option has no effect, is here for backwards compatibility, and may '
-     'be removed someday.'),
-    ('workaround-548392=',None,
-     'This option has no effect, is here for backwards compatibility, and may '
-     'be removed someday.'),
-    ('no-backwards-compatibility',None,
-     'This option has no effect, is here for backwards compatibility, and may '
-     'be removed someday.'),
     ('guess-conflicts-provides-replaces=',None,
      'If True, attempt to guess Conflicts/Provides/Replaces in debian/control '
      'based on apt-cache output. (Default=False).'),
@@ -94,6 +85,8 @@ stdeb_cmdline_opts = [
      'Allow installing into /some/random/virtualenv-path'),
     ('sign-results',None,
      'Use gpg to sign the resulting .dsc and .changes file'),
+    ('sign-key=',None,
+     'Override the signing key to use to sign the package.')
     ]
 
 # old entries from stdeb.cfg:
@@ -119,7 +112,8 @@ stdeb_cfg_options = [
      'debian/control Maintainer: (Default: <setup-maintainer-or-author>)'),
     ('debian-version=',None,'debian version (Default: 1)'),
     ('section=',None,'debian/control Section: (Default: python)'),
-
+    ('changelog=',None,
+     'specify your own debian/changelog file, (Default is auto generated)'),
     # With no defaults
     ('epoch=',None,'version epoch'),
     ('forced-upstream-version=',None,'forced upstream version'),
@@ -127,6 +121,7 @@ stdeb_cfg_options = [
     ('upstream-version-suffix=',None,'upstream version suffix'),
     ('uploaders=',None,'uploaders'),
     ('copyright-file=',None,'copyright file'),
+    ('news-file=',None,'upstream changelog, becomes debian/NEWS'),
     ('build-depends=',None,'debian/control Build-Depends:'),
     ('build-conflicts=',None,'debian/control Build-Conflicts:'),
     ('stdeb-patch-file=',None,'file containing patches for stdeb to apply'),
@@ -781,6 +776,7 @@ class DebianInfo:
         self.distname = parse_val(cfg,module_name,'Suite')
         self.maintainer = ', '.join(parse_vals(cfg,module_name,'Maintainer'))
         self.uploaders = parse_vals(cfg,module_name,'Uploaders')
+        self.changelog = parse_val(cfg,module_name,'Changelog')
         self.date822 = get_date_822()
 
         build_deps = ['dh-python']
@@ -817,6 +813,7 @@ class DebianInfo:
             if with_python3:
                 build_deps.append('python3-all (>= %s)'%PYTHON3_ALL_MIN_VERS)
 
+        self.news_file = parse_val(cfg,module_name,'News-File')
         self.copyright_file = parse_val(cfg,module_name,'Copyright-File')
         self.mime_file = parse_val(cfg,module_name,'MIME-File')
 
@@ -1175,6 +1172,7 @@ def build_dsc(debinfo,
               remove_expanded_source_dir=0,
               debian_dir_only=False,
               sign_dsc=False,
+              sign_key=None,
               check_depends=True):
     """make debian source package"""
     #    A. Find new dirname and delete any pre-existing contents
@@ -1239,10 +1237,14 @@ def build_dsc(debinfo,
         os.mkdir(debian_dir)
 
     #    A. debian/changelog
-    changelog = CHANGELOG_FILE%debinfo.__dict__
-    with open(os.path.join(debian_dir,'changelog'),
-              mode='w', encoding='utf-8') as fd:
-        fd.write(changelog)
+    if debinfo.changelog != '':
+        link_func(debinfo.changelog,
+                  os.path.join(debian_dir, 'changelog'))
+    else:
+        changelog = CHANGELOG_FILE%debinfo.__dict__
+        with open(os.path.join(debian_dir,'changelog'),
+                  mode='w', encoding='utf-8') as fd:
+            fd.write(changelog)
 
     #    B. debian/control
     if debinfo.uploaders:
@@ -1291,6 +1293,10 @@ def build_dsc(debinfo,
     if debinfo.copyright_file != '':
         link_func( debinfo.copyright_file,
                  os.path.join(debian_dir,'copyright'))
+
+    if debinfo.news_file != '':
+        link_func( debinfo.news_file,
+                 os.path.join(debian_dir,'NEWS'))
 
     #    H. debian/<package>.install
     if len(debinfo.install_file_lines):
@@ -1391,9 +1397,12 @@ def build_dsc(debinfo,
     #    http://www.debian.org/doc/developers-reference/ch-best-pkging-practices.en.html
 
     if sign_dsc:
-        args = ()
+        if sign_key:
+            args = ['--sign-key='+sign_key]
+        else:
+            args = []
     else:
-        args = ('-uc','-us')
+        args = ['-uc','-us']
 
     dpkg_buildpackage('-S','-sa',*args,cwd=fullpath_repackaged_dirname)
 

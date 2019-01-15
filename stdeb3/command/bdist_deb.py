@@ -11,6 +11,8 @@ class bdist_deb(Command):
     user_options = [
         ('sign-results',None,
          'Use gpg to sign the resulting .dsc and .changes file'),
+        ('sign-key=',None,
+         'Override the signing key to use to sign the package.')
         ]
     boolean_options = [
         'sign-results',
@@ -18,6 +20,7 @@ class bdist_deb(Command):
 
     def initialize_options (self):
         self.sign_results = False
+        self.sign_key = None
 
     def finalize_options (self):
         self.sign_results = bool(self.sign_results)
@@ -52,7 +55,9 @@ class bdist_deb(Command):
 
         if not self.sign_results:
             syscmd.append('-uc')
-
+        else:
+            if self.sign_key:
+                syscmd.append('--sign-key=' + self.sign_key)
         util.process_command(syscmd,cwd=target_dirs[0])
 
 __all__ = ['bdist_deb']

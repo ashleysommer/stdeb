@@ -6,7 +6,7 @@ from stdeb3 import log
 from distutils.core import Command
 from distutils.errors import DistutilsModuleError
 
-from stdeb3.util import DebianInfo, build_dsc, stdeb_cmdline_opts, \
+from stdeb3.util import DebianInfo, stdeb_cmdline_opts, \
      stdeb_cmd_bool_opts, stdeb_cfg_options
 
 class CommonDebianPackageCommand(Command):
@@ -29,6 +29,7 @@ class CommonDebianPackageCommand(Command):
         self.force_x_python3_version = False
         self.allow_virtualenv_install_location = False
         self.sign_results = False
+        self.sign_key = None
         self.with_dh_addons = ''
 
         # deprecated options
@@ -135,8 +136,8 @@ class CommonDebianPackageCommand(Command):
             # Pickup old location of stdeb.cfg
             config_fname = os.path.join(egg_info_dirname,'stdeb.cfg')
             if os.path.exists(config_fname):
-                log.warn('Deprecation warning: stdeb detected old location of '
-                         'stdeb.cfg in %s. This file will be used, but you '
+                log.warn('Deprecation warning: stdeb3 detected old location '
+                         'of stdeb.cfg in %s. This file will be used, but you '
                          'should move it alongside setup.py.' %egg_info_dirname)
                 cfg_files.append(config_fname)
 
