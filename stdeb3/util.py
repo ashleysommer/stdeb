@@ -110,10 +110,13 @@ stdeb_cfg_options = [
      'suite (e.g. stable, lucid) in changelog (Default: unstable)'),
     ('maintainer=',None,
      'debian/control Maintainer: (Default: <setup-maintainer-or-author>)'),
+    ('homepage=',None,
+     'debian/control Homepage: (Default: <homepage-debianized-setup-url>)'),
     ('debian-version=',None,'debian version (Default: 1)'),
     ('section=',None,'debian/control Section: (Default: python)'),
     ('changelog=',None,
      'specify your own debian/changelog file, (Default is auto generated)'),
+
     # With no defaults
     ('epoch=',None,'version epoch'),
     ('forced-upstream-version=',None,'forced upstream version'),
@@ -122,6 +125,7 @@ stdeb_cfg_options = [
     ('uploaders=',None,'uploaders'),
     ('copyright-file=',None,'copyright file'),
     ('news-file=',None,'upstream changelog, becomes debian/NEWS'),
+    ('watch-rule=',None,'add a watch file with this rule to debian/watch'),
     ('build-depends=',None,'debian/control Build-Depends:'),
     ('build-conflicts=',None,'debian/control Build-Conflicts:'),
     ('stdeb-patch-file=',None,'file containing patches for stdeb to apply'),
@@ -437,6 +441,37 @@ def get_deb_depends_from_setuptools_requires(requirements, on_failure="warn"):
 
     return depends
 
+def find_watch_rule(home_url):
+    github_re = r"^http[s]?://github\.com/([^/?&#\s]+)/([^/?&#\s]+)[/\w&?#=]*$"
+    m = re.match(github_re, home_url, re.IGNORECASE)
+    if m:
+        github_watch = """opts=filenamemangle=s/.+\\/v?(\\d\\S+)\\.tar\\.gz/{project:s}-$1\\.tar\\.gz/ \
+https://github.com/{user:s}/{project:s}/releases .*/v?(\\d\\S+)\\.tar\\.gz"""
+        return github_watch.format(user=m.group(1), project=m.group(2))
+    bitbucket_re = r"^http[s]?://bitbucket\.org/([^/?&#\s]+)/([^/?&#\s]+)[/\w&?#=]*$"
+    m = re.match(bitbucket_re, home_url, re.IGNORECASE)
+    if m:
+        bitbucket_watch = """https://bitbucket.org/{user:s}/{project:s}/downloads?tab=tags .*/(\\d\\S+)\\.tar\\.gz"""
+        return bitbucket_watch.format(user=m.group(1), project=m.group(2))
+    gitlab_re = r"^http[s]?://gitlab\.com/([^/?&#\s]+)/([^/?&#\s]+)[/\w&?#=]*$"
+    m = re.match(gitlab_re, home_url, re.IGNORECASE)
+    if m:
+        gitlab_watch = """opts=filenamemangle=s/.*\\/(\\d\\S+)\\/archive\\.tar\\.gz/{project:s}-$1\\.tar\\.gz/g \
+https://gitlab.com/{user:s}/{project:s}/tags?sort=updated_desc .*(\\d\\S+)/archive\\.tar\\.gz"""
+        return gitlab_watch.format(user=m.group(1), project=m.group(2))
+    pypi_re = r"^http[s]?://pypi.org/project/([^/?&#\s]+)[/\w&?#=]*$"
+    m = re.match(pypi_re, home_url, re.IGNORECASE)
+    if m:
+        pypi_watch = """https://pypi.org/simple/{project:s}/ .*/{project:s}-(\\d\\S+)\\.tar\\.gz"""
+        return pypi_watch.format(project=m.group(1))
+    gitlab_org_re = r"^http[s]?://([^/\s]+)/([^/?&#\s]+)/([^/?&#\s]+)/(?:tree/master|activity|tags)[/\w&?#=]*$"
+    m = re.match(gitlab_org_re, home_url, re.IGNORECASE)
+    if m:
+        gitlab_watch = """opts=filenamemangle=s/.*?\\/(\\d\\S+)\\/archive\\.tar\\.gz/{project:s}-$1\\.tar\\.gz/g \
+https://{host:s}/{user:s}/{project:}/tags?sort=updated_desc .*?(\\d\\S+)/archive\\.tar\\.gz"""
+        return gitlab_watch.format(host=m.group(1), user=m.group(2), project=m.group(3))
+    return None
+
 def make_tarball(tarball_fname,directory,cwd=None):
     "create a tarball from a directory"
     if tarball_fname.endswith('.gz'): opts = 'czf'
@@ -678,6 +713,7 @@ class DebianInfo:
                  has_ext_modules=NotGiven,
                  description=NotGiven,
                  long_description=NotGiven,
+                 guess_homepage_url=NotGiven,
                  patch_file=None,
                  patch_level=None,
                  setup_requires=None,
@@ -714,6 +750,7 @@ class DebianInfo:
             module_name=module_name,
             default_distribution=default_distribution,
             guess_maintainer=guess_maintainer,
+            guess_homepage_url=guess_homepage_url
             )
 
         if len(cfg_files):
@@ -738,6 +775,7 @@ class DebianInfo:
 
         self.stdeb_version = __stdeb_version__
         self.module_name = module_name
+
         self.source = parse_val(cfg,module_name,'Source')
         self.package = parse_val(cfg,module_name,'Package')
         self.package3 = parse_val(cfg,module_name,'Package3')
@@ -774,6 +812,7 @@ class DebianInfo:
             self.upstream_version,
             self.packaging_version)
         self.distname = parse_val(cfg,module_name,'Suite')
+        self.homepage = parse_val(cfg, module_name, 'Homepage')
         self.maintainer = ', '.join(parse_vals(cfg,module_name,'Maintainer'))
         self.uploaders = parse_vals(cfg,module_name,'Uploaders')
         self.changelog = parse_val(cfg,module_name,'Changelog')
@@ -816,7 +855,6 @@ class DebianInfo:
         self.news_file = parse_val(cfg,module_name,'News-File')
         self.copyright_file = parse_val(cfg,module_name,'Copyright-File')
         self.mime_file = parse_val(cfg,module_name,'MIME-File')
-
         self.shared_mime_file = parse_val(cfg,module_name,'Shared-MIME-File')
 
         if self.mime_file == '' and self.shared_mime_file == '':
@@ -1093,7 +1131,10 @@ class DebianInfo:
             self.exports += '\n'.join(['export %s'%v for v in setup_env_vars])
             self.exports += '\n'
         self.udev_rules = parse_val(cfg,module_name,'Udev-Rules')
-
+        watch_rule = parse_val(cfg,module_name,'Watch-Rule')
+        if not watch_rule and self.homepage and self.homepage != NotGiven:
+            watch_rule = find_watch_rule(self.homepage)
+        self.watch_rule = watch_rule
         if need_custom_binary_target:
             if self.architecture == 'all':
                 self.binary_target_lines = ( \
@@ -1126,6 +1167,7 @@ class DebianInfo:
                            module_name=NotGiven,
                            default_distribution=NotGiven,
                            guess_maintainer=NotGiven,
+                           guess_homepage_url=NotGiven,
                            ):
         defaults = {}
         default_re = re.compile(r'^.* \(Default: (.*)\)$')
@@ -1152,6 +1194,9 @@ class DebianInfo:
                 elif value == '<setup-maintainer-or-author>':
                     assert key=='maintainer'
                     value = guess_maintainer
+                elif value == '<homepage-debianized-setup-url>':
+                    assert key=='homepage'
+                    value = guess_homepage_url
                 if key=='suite':
                     if default_distribution is not None:
                         value = default_distribution
@@ -1251,6 +1296,10 @@ def build_dsc(debinfo,
         debinfo.uploaders = 'Uploaders: %s\n' % ', '.join(debinfo.uploaders)
     else:
         debinfo.uploaders = ''
+    if debinfo.homepage:
+        debinfo.homepage = 'Homepage: %s\n' % debinfo.homepage
+    else:
+        debinfo.homepage = ''
     control = CONTROL_FILE%debinfo.__dict__
     with open(os.path.join(debian_dir,'control'),
               mode='w', encoding='utf-8') as fd:
@@ -1294,9 +1343,19 @@ def build_dsc(debinfo,
         link_func( debinfo.copyright_file,
                  os.path.join(debian_dir,'copyright'))
 
+    # debain/NEWS
     if debinfo.news_file != '':
         link_func( debinfo.news_file,
                  os.path.join(debian_dir,'NEWS'))
+
+    # debian/watch
+    if debinfo.watch_rule:
+        fd = open(os.path.join(debian_dir,'watch'), mode='w')
+        fd.write('version=4\n')
+        fd.write(debinfo.watch_rule)
+        if not str(debinfo.watch_rule).endswith('\n'):
+            fd.write('\n')
+        fd.close()
 
     #    H. debian/<package>.install
     if len(debinfo.install_file_lines):
@@ -1429,7 +1488,7 @@ Maintainer: %(maintainer)s
 Priority: optional
 Build-Depends: %(build_depends)s
 Standards-Version: 3.9.8
-%(source_stanza_extras)s
+%(homepage)s%(source_stanza_extras)s
 
 %(control_py2_stanza)s
 

@@ -194,6 +194,9 @@ class CommonDebianPackageCommand(Command):
             long_description = long_description.decode('utf-8')
         long_description = long_description
 
+        guess_homepage_url = self.distribution.get_url()
+        if guess_homepage_url == "UNKNOWN":
+            guess_homepage_url = None
 
         debinfo = DebianInfo(
             cfg_files=cfg_files,
@@ -204,6 +207,7 @@ class CommonDebianPackageCommand(Command):
             has_ext_modules = self.distribution.has_ext_modules(),
             description = description,
             long_description = long_description,
+            guess_homepage_url = guess_homepage_url,
             patch_file = self.patch_file,
             patch_level = self.patch_level,
             debian_version = self.debian_version,
