@@ -19,8 +19,8 @@ __all__ = ['DebianInfo','build_dsc','expand_tarball','expand_zip',
            'apply_patch','repack_tarball_with_debianized_dirname',
            'expand_sdist_file','stdeb_cfg_options']
 
-DH_MIN_VERS = '9'        # Fundamental to stdeb >= 0.4
-DH_IDEAL_VERS = '9.20150101'
+DH_COMPAT_LEVEL = '9'
+DH_MINIMUM_VERS = '9.20150101'
 
 PYTHON_ALL_MIN_VERS = '2.7.9-1'  # This is the version in Debian Jessie (oldstable)
 PYTHON3_ALL_MIN_VERS = '3.4.2-2'  # This is the version in Debian Jessie (oldstable)
@@ -112,6 +112,10 @@ stdeb_cfg_options = [
      'debian/control Maintainer: (Default: <setup-maintainer-or-author>)'),
     ('homepage=',None,
      'debian/control Homepage: (Default: <homepage-debianized-setup-url>)'),
+    ('description=', None,
+     'debian/control Description: (Default: <description-debianized-setup-text>)'),
+    ('long-description=', None,
+     'debian/control Description: (Default: <long-description-debianized-setup-text>)'),
     ('debian-version=',None,'debian version (Default: 1)'),
     ('section=',None,'debian/control Section: (Default: python)'),
     ('changelog=',None,
@@ -130,6 +134,8 @@ stdeb_cfg_options = [
     ('build-conflicts=',None,'debian/control Build-Conflicts:'),
     ('stdeb-patch-file=',None,'file containing patches for stdeb to apply'),
     ('stdeb-patch-level=',None,'patch level provided to patch command'),
+    ('dh-compat=',None,'Debhelper compat level, single whole version only, defaults to \'9\''),
+    ('dh-min=',None,'Minimum debhelper version, major should match dh-compat, defaults to \'9.20150101\''),
     ('depends=',None,'debian/control Depends:'),
     ('depends3=',None,'debian/control Depends:'),
     ('suggests=',None,'debian/control Suggests:'),
@@ -711,8 +717,8 @@ class DebianInfo:
                  guess_maintainer=NotGiven,
                  upstream_version=NotGiven,
                  has_ext_modules=NotGiven,
-                 description=NotGiven,
-                 long_description=NotGiven,
+                 guess_description=NotGiven,
+                 guess_long_desc=NotGiven,
                  guess_homepage_url=NotGiven,
                  patch_file=None,
                  patch_level=None,
@@ -741,14 +747,16 @@ class DebianInfo:
             "upstream_version must be supplied")
         if has_ext_modules is NotGiven: raise ValueError(
             "has_ext_modules must be supplied")
-        if description is NotGiven: raise ValueError(
+        if guess_description is NotGiven: raise ValueError(
             "description must be supplied")
-        if long_description is NotGiven: raise ValueError(
+        if guess_long_desc is NotGiven: raise ValueError(
             "long_description must be supplied")
 
         cfg_defaults = self._make_cfg_defaults(
             module_name=module_name,
             default_distribution=default_distribution,
+            guess_description=guess_description,
+            guess_long_desc=guess_long_desc,
             guess_maintainer=guess_maintainer,
             guess_homepage_url=guess_homepage_url
             )
@@ -882,11 +890,12 @@ class DebianInfo:
         self.depends3 = ', '.join(depends3)
 
         self.debian_section = parse_val(cfg,module_name,'Section')
-
+        description = parse_val(cfg, module_name, 'Description')
+        long_description = parse_val(cfg, module_name, 'Long-Description')
         self.description = re.sub('\s+', ' ', description).strip()
-        if long_description != 'UNKNOWN':
+        if len(long_description) > 0 and long_description != 'UNKNOWN':
             ld2=[]
-            for line in long_description.split('\n'):
+            for line in long_description.replace("\\n", '\n').split('\n'):
                 ls = line.strip()
                 if len(ls):
                     ld2.append(' '+line)
@@ -896,12 +905,17 @@ class DebianInfo:
             self.long_description = '\n'.join(ld2)
         else:
             self.long_description = ''
-
-        if have_script_entry_points:
-            build_deps.append( 'debhelper (>= %s)'%DH_IDEAL_VERS )
+        dh_compat_level = parse_val(cfg,module_name,'dh-compat')
+        dh_min_version = parse_val(cfg,module_name,'dh-min')
+        if len(dh_compat_level):
+            self.dh_compat_level = dh_compat_level
         else:
-            build_deps.append( 'debhelper (>= %s)'%DH_MIN_VERS )
-
+            self.dh_compat_level = DH_COMPAT_LEVEL
+        if len(dh_min_version):
+            self.dh_min_version = dh_min_version
+        else:
+            self.dh_min_version = DH_MINIMUM_VERS
+        build_deps.append( 'debhelper (>= %s)' % self.dh_min_version)
         build_deps.extend( parse_vals(cfg,module_name,'Build-Depends') )
         self.build_depends = ', '.join(build_deps)
 
@@ -1168,6 +1182,8 @@ class DebianInfo:
                            default_distribution=NotGiven,
                            guess_maintainer=NotGiven,
                            guess_homepage_url=NotGiven,
+                           guess_description=NotGiven,
+                           guess_long_desc=NotGiven
                            ):
         defaults = {}
         default_re = re.compile(r'^.* \(Default: (.*)\)$')
@@ -1197,6 +1213,12 @@ class DebianInfo:
                 elif value == '<homepage-debianized-setup-url>':
                     assert key=='homepage'
                     value = guess_homepage_url
+                elif value == '<description-debianized-setup-text>':
+                    assert key=='description'
+                    value = guess_description
+                elif value == '<long-description-debianized-setup-text>':
+                    assert key=='long-description'
+                    value = guess_long_desc
                 if key=='suite':
                     if default_distribution is not None:
                         value = default_distribution
@@ -1318,7 +1340,7 @@ def build_dsc(debinfo,
 
     #    D. debian/compat
     fd = open(os.path.join(debian_dir,'compat'), mode='w')
-    fd.write('%s\n'%str(DH_MIN_VERS))
+    fd.write('%s\n' % str(debinfo.dh_compat_level))
     fd.close()
 
     #    E. debian/package.mime
@@ -1416,13 +1438,13 @@ def build_dsc(debinfo,
             if len(debhelper_version_str)==0:
                 log.warn('This version of stdeb requires debhelper >= %s, but you '
                          'do not have debhelper installed. '
-                         'Could not check compatibility.'%DH_MIN_VERS)
+                         'Could not check compatibility.' % debinfo.dh_min_version)
             elif not dpkg_compare_versions(
-                debhelper_version_str, 'ge', DH_MIN_VERS ):
+                debhelper_version_str, 'ge', debinfo.dh_min_version ):
                 log.warn('This version of stdeb requires debhelper >= %s. '
                          'Use stdeb 0.8.x to generate source packages '
-                         'compatible with older versions of debhelper.'%(
-                    DH_MIN_VERS,))
+                         'compatible with older versions of debhelper.' % (
+                         debinfo.dh_min_version,))
         if "python-all" in build_deps or 'python-all-dev' in build_deps:
             python_defaults_version_str = get_version_str('python-all')
             if len(python_defaults_version_str)==0:
@@ -1488,11 +1510,9 @@ Maintainer: %(maintainer)s
 Priority: optional
 Build-Depends: %(build_depends)s
 Standards-Version: 3.9.8
-%(homepage)s%(source_stanza_extras)s
-
-%(control_py2_stanza)s
-
-%(control_py3_stanza)s
+%(homepage)s%(source_stanza_extras)s\
+%(control_py2_stanza)s\
+%(control_py3_stanza)s\
 """
 
 CONTROL_PY2_STANZA = """
