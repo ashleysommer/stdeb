@@ -1135,8 +1135,8 @@ class DebianInfo:
             version = x_python3_version[0]
             if not version.endswith('~'):
                 version += '~'
-
-        sequencer_options = ['--with '+','.join(sequencer_with)]
+        with_list = ','.join(sequencer_with).rstrip(',')
+        sequencer_options = ['--with '+with_list]
         sequencer_options.append('--buildsystem=pybuild')
         self.sequencer_options = ' '.join(sequencer_options)
 
