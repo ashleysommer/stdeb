@@ -1,0 +1,5 @@
+stdeb3 (0.9.0-1) unstable; urgency=low
+
+  * packaged upstream version 0.9.0 for initial release in debian package
+
+ -- Ashley Sommer <ashleysommer@gmail.com>  Thu, 31 Jan 2019 00:00:00 +1000
