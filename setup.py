@@ -43,7 +43,7 @@ with open_local('README.rst') as file:
 setup(name='stdeb3',
       version=version,
       author='Ashley Sommer',
-      author_email='Ashley.Sommer@csiro.au',
+      author_email='ashleysommer@gmail.com',
       description='Python to Debian source package conversion utility, forked from stdeb',
       long_description=long_description,
       license='MIT',
