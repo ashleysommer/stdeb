@@ -1,0 +1,26 @@
+FROM debian:stretch
+
+RUN apt-get update
+RUN apt-get install -y git bash python3-dev python3-all-dev python3-pip python3-setuptools python3-requests apt-file\
+ dpkg-dev debhelper dh-python build-essential fakeroot gnupg2
+
+RUN pip3 install stdeb3
+
+RUN useradd -m -U stdeb3
+
+WORKDIR /home/stdeb3
+
+ADD ./docker-script.sh /home/stdeb3/
+
+ENV PYTHON_PROJECT_GIT="https://github.com/ashleysommer/stdeb3.git"
+ENV PYTHON_PROJECT_BRANCH="master"
+ENV GPG_SECRET_KEY=""
+ENV PRESERVE_OUTPUT_VOLUME=""
+ENV STDEB3_SOURCE_ONLY=""
+ENV STDEB3_EXTRA_ARGS=""
+ENV STDEB3_SIGN_RESULTS=""
+ENV STDEB3_SIGN_KEY=""
+
+VOLUME /home/stdeb3/output
+USER stdeb3
+CMD ["bash", "/home/stdeb3/docker-script.sh"]

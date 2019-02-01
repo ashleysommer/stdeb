@@ -1,9 +1,16 @@
 #!/bin/bash
 PYTHON_PROJECT_GIT="${PYTHON_PROJECT_GIT:-https://github.com/ashleysommer/stdeb3.git}"
 PYTHON_PROJECT_BRANCH="${PYTHON_PROJECT_BRANCH:-master}"
-
 OUT_DIR="/home/stdeb3/output"
 
+source /etc/os-release
+if [ -z "${ID}" -o -z "${VERSION_ID}" ]; then
+  echo "/etc/os-release does not provide \$ID or \$VERSION_ID. Using fallbacks."
+  ID="debian"
+  VERSION_ID="8"
+else
+  echo "Running on ${ID} ${VERSION_ID}"
+fi
 T1=$(touch "${OUT_DIR}/t1")
 if [ "$?" -gt "0" ]; then
     echo "No permission to write to the bound output volume. Aborting."
@@ -23,13 +30,18 @@ if [ -z "${GPG_SECRET_KEY}" ]; then
   echo "No secret keys given."
   CAN_SIGN=""
 else
-  echo "using gpg secret key: [hidden]"
-  USE_SECRET_KEY=$(echo "${GPG_SECRET_KEY}" | sed 's|\\n|\n|g')
-  gpg -v --allow-secret-key-import -a --import <(echo "${USE_SECRET_KEY}")
+  if [ -e ${GPG_SECRET_KEY} -a -f ${GPG_SECRET_KEY} ]; then
+    echo "using gpg secret key file: ${GPG_SECRET_KEY}"
+    gpg -v --allow-secret-key-import -a --import $GPG_SECRET_KEY
+  else
+	echo "using gpg secret key string: [hidden]"
+	USE_SECRET_KEY=$(echo "${GPG_SECRET_KEY}" | sed 's|\\n|\n|g')
+	gpg -v --allow-secret-key-import -a --import <(echo "${USE_SECRET_KEY}")
+  fi
   CAN_SIGN="true"
 fi
 
-if [ -z "${STDEB3_SIGN_RESULTS}" ]; then
+if [ -z "${STDEB3_SIGN_RESULTS}" -o "${STDEB3_SIGN_RESULTS}" = "0" ]; then
   SIGN_RESULTS=""
   DPKG_SIGN_ARG="-uc"
 else
@@ -79,7 +91,7 @@ fi
 echo "Generated .dsc file:"
 cat "${DSC_FILE}"
 
-if [ -z "${PRESERVE_OUTPUT_VOLUME}" ]; then
+if [ -z "${PRESERVE_OUTPUT_VOLUME}" -o "${PRESERVE_OUTPUT_VOLUME}" = "0" ]; then
   echo "Wiping any existing contents of output directory"
   rm -rf "${OUT_DIR}"/*
 else
@@ -102,7 +114,7 @@ BUILT_PROJ_NAME_LEN=$(expr $DSC_FILE_LEN - 4)
 BUILT_PROJ_NAME=${DSC_FILE:0:BUILT_PROJ_NAME_LEN}
 echo "Build Project Name: ${BUILT_PROJ_NAME}"
 
-if [ -z "${STDEB3_SOURCE_ONLY}" ]; then
+if [ -z "${STDEB3_SOURCE_ONLY}" -o "${STDEB3_SOURCE_ONLY}" = "0" ]; then
   echo "Now building .deb package..."
 else
   BUILT_FILES=$(find -mindepth 1 -maxdepth 1 -type f -iname "${BUILT_PROJ_NAME}*" | sed 's|^\./||')
@@ -137,10 +149,12 @@ if [ -z "${DEB_FILE}" ]; then
   echo "Generated debian dist .deb file not found!"
   exit 1
 fi
-cp -f "${DEB_FILE}" "${OUT_DIR}/"
+DEB_FILE_LEN=${#DEB_FILE}
+DEB_FILE_NAME_LEN=$(expr $DEB_FILE_LEN - 4)
+DEB_FILE_NAME=${DEB_FILE:0:DEB_FILE_NAME_LEN}
+cp -f "${DEB_FILE}" "${OUT_DIR}/${DEB_FILE_NAME}+${ID}-${VERSION_ID}.deb"
 
 BUILT_FILES=$(find -mindepth 1 -maxdepth 1 -type f -iname "${BUILT_PROJ_NAME}*" | sed 's|^\./||')
-echo "built files: ${BUILT_FILES}"
 read -rd '' -a BUILT_FILES_A <<<"${BUILT_FILES}"
 for BUILT_FILE in ${BUILT_FILES_A[@]}; do
     cp -f "${BUILT_FILE}" "${OUT_DIR}/"
