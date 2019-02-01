@@ -8,7 +8,7 @@ This is a port of `stdeb <http://github.com/astraw/stdeb>`_ with
 modernisations such as removal of python2 support at build-time,
 removal of support for Debian versions less than 8 (jessie) (oldstable),
 bump of minimum required Debhelper version, newer dh-compat version,
-and lots more. See the CHANGELOG.txt for more info.
+and lots more. See the RELEASE_NOTES.txt for more info.
 
 `stdeb3 <http://github.com/ashleysommer/stdeb3>`_ produces Debian source
 packages from Python packages via a new distutils command,
@@ -58,7 +58,7 @@ interpreter (and only the Python3 package installs scripts)::
 News
 ----
  * 2019-01-31: **Version 0.9.0**.
-   Ported to stdeb3. See CHANGELOG.txt for changes.
+   Ported to stdeb3. See RELEASE_NOTES.txt for changes.
 
  * 2015-02-18: **Version 0.8.5**. See the `download page
    <https://pypi.python.org/pypi/stdeb/0.8.5>`__. Bugfixes: reverted

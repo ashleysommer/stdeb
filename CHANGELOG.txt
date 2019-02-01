@@ -1,5 +1,5 @@
 Since (and including) release 0.8.0, updates to this file are no
-longer made. Please see README.rst.
+longer made. Please see README.rst and RELEASE_NOTES.txt
 
 = Release 0.7.1 (2014-05-04) =
 
