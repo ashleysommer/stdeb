@@ -12,6 +12,9 @@ env:
   - DEBIAN_VERSION=xenial STDEB3_SIGN_RESULTS=0 STDEB3_EXTRA_ARGS="--dh-min=9.20160115ubuntu3 --dh-compat=9"
   - DEBIAN_VERSION=bionic STDEB3_SIGN_RESULTS=1 STDEB3_EXTRA_ARGS="--dh-min=11.1.6 --dh-compat=11"
 before_install:
+- export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+- export REPO=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_REPO_SLUG; else echo $TRAVIS_PULL_REQUEST_SLUG; fi)
+- echo "REPO=$REPO, TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, BRANCH=$BRANCH"
 - openssl aes-256-cbc -K $encrypted_e060ef17c1b2_key -iv $encrypted_e060ef17c1b2_iv
   -in secret_key.asc.enc -out /tmp/secret_key.asc -d
 - mkdir -p /tmp/output
@@ -20,6 +23,7 @@ before_install:
 before_script:
 - docker run -v $(pwd)/docker-script.sh:/home/stdeb3/docker-script.sh  -v /tmp/secret_key.asc:/tmp/secret_key.asc
   -v /tmp/output:/home/stdeb3/output -e GPG_SECRET_KEY="/tmp/secret_key.asc" -e GPG_SECRET_KEY_PASSPHRASE="${GPG_SECRET_KEY_PASSPHRASE}"
+  -e PYTHON_PROJECT_GIT="https://github.com/${REPO}.git" -e PYTHON_PROJECT_BRANCH="${BRANCH}"
   -e STDEB3_SIGN_RESULTS="$STDEB3_SIGN_RESULTS" -e STDEB3_EXTRA_ARGS="$STDEB3_EXTRA_ARGS"
   -t -i ashleysommer/stdeb3:$DEBIAN_VERSION
 - ls -lah /tmp/output

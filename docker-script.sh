@@ -37,7 +37,7 @@ fi
 echo "Using git project: $PYTHON_PROJECT_GIT"
 git clone -b ${PYTHON_PROJECT_BRANCH} --recursive ${PYTHON_PROJECT_GIT} project
 cd project
-git submodule foreach "git checkout master"
+git submodule foreach "git pull"
 
 if [ -z "${GPG_SECRET_KEY}" ]; then
   echo "No secret keys given."
