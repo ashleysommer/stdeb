@@ -141,6 +141,7 @@ class sdist_dsc(CommonDebianPackageCommand):
                   remove_expanded_source_dir=self.remove_expanded_source_dir,
                   sign_dsc=self.sign_results,
                   sign_key=self.sign_key,
+                  gpg_proxy=self.gpg_proxy,
                   check_depends=True,
                   )
 

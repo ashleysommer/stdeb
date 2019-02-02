@@ -30,6 +30,7 @@ class CommonDebianPackageCommand(Command):
         self.allow_virtualenv_install_location = False
         self.sign_results = False
         self.sign_key = None
+        self.gpg_proxy = None
         self.with_dh_addons = ''
 
         # deprecated options

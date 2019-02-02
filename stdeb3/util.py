@@ -86,7 +86,9 @@ stdeb_cmdline_opts = [
     ('sign-results',None,
      'Use gpg to sign the resulting .dsc and .changes file'),
     ('sign-key=',None,
-     'Override the signing key to use to sign the package.')
+     'Override the signing key to use to sign the package.'),
+    ('gpg-proxy=', None,
+     'Use this command instead of gpg to sign the package.')
     ]
 
 # old entries from stdeb.cfg:
@@ -1243,6 +1245,7 @@ def build_dsc(debinfo,
               debian_dir_only=False,
               sign_dsc=False,
               sign_key=None,
+              gpg_proxy=None,
               check_depends=True):
     """make debian source package"""
     #    A. Find new dirname and delete any pre-existing contents
@@ -1485,6 +1488,8 @@ def build_dsc(debinfo,
             args = ['--sign-key='+sign_key]
         else:
             args = []
+        if gpg_proxy:
+            args.append("--sign-command="+str(gpg_proxy))
     else:
         args = ['-uc','-us']
 

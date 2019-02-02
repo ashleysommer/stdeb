@@ -12,8 +12,10 @@ class bdist_deb(Command):
         ('sign-results',None,
          'Use gpg to sign the resulting .dsc and .changes file'),
         ('sign-key=',None,
-         'Override the signing key to use to sign the package.')
-        ]
+         'Override the signing key to use to sign the package.'),
+        ('gpg-proxy=', None,
+         'Use this gpg proxy rather than gpg to sign the package.'),
+    ]
     boolean_options = [
         'sign-results',
         ]
@@ -21,6 +23,7 @@ class bdist_deb(Command):
     def initialize_options (self):
         self.sign_results = False
         self.sign_key = None
+        self.gpg_proxy = None
 
     def finalize_options (self):
         self.sign_results = bool(self.sign_results)
@@ -58,6 +61,8 @@ class bdist_deb(Command):
         else:
             if self.sign_key:
                 syscmd.append('--sign-key=' + self.sign_key)
+            if self.gpg_proxy:
+                syscmd.append('--sign-command=' + str(self.gpg_proxy))
         util.process_command(syscmd,cwd=target_dirs[0])
 
 __all__ = ['bdist_deb']
