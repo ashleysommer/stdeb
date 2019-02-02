@@ -3,6 +3,14 @@ PYTHON_PROJECT_GIT="${PYTHON_PROJECT_GIT:-https://github.com/ashleysommer/stdeb3
 PYTHON_PROJECT_BRANCH="${PYTHON_PROJECT_BRANCH:-master}"
 OUT_DIR="/home/stdeb3/output"
 
+HAS_GPG2="$(which gpg2)"
+if [ "$?" = "0" ]; then
+  GPG="$HAS_GPG2"
+else
+  GPG="$(which gpg)"
+fi
+
+
 source /etc/os-release
 if [ -z "${ID}" -o -z "${VERSION_ID}" ]; then
   echo "/etc/os-release does not provide \$ID or \$VERSION_ID. Using fallbacks."
@@ -32,12 +40,31 @@ if [ -z "${GPG_SECRET_KEY}" ]; then
 else
   if [ -e ${GPG_SECRET_KEY} -a -f ${GPG_SECRET_KEY} ]; then
     echo "using gpg secret key file: ${GPG_SECRET_KEY}"
-    gpg -v --allow-secret-key-import -a --import $GPG_SECRET_KEY
+    GPG_IMPORT_COMMAND="--allow-secret-key-import -a --import $GPG_SECRET_KEY"
   else
 	echo "using gpg secret key string: [hidden]"
 	USE_SECRET_KEY=$(echo "${GPG_SECRET_KEY}" | sed 's|\\n|\n|g')
-	gpg -v --allow-secret-key-import -a --import <(echo "${USE_SECRET_KEY}")
+	GPG_IMPORT_COMMAND="--allow-secret-key-import -a --import <(echo "${USE_SECRET_KEY}")"
   fi
+
+  if [ -z "${GPG_SECRET_KEY_PASSPHRASE}" ]; then
+    echo "No secret key passphrase given."
+  else
+    gpgconf --kill gpg-agent
+    echo "#!/bin/bash" > /tmp/signproxy
+    if [ -e ${GPG_SECRET_KEY_PASSPHRASE} -a -f ${GPG_SECRET_KEY_PASSPHRASE} ]; then
+      echo "using gpg secret key passphrase file: ${GPG_SECRET_KEY_PASSPHRASE}"
+      echo "${GPG} --batch --yes --no-tty --pinentry-mode loopback --no-use-agent --passphrase-file ${GPG_SECRET_KEY_PASSPHRASE} \"\$@\"" >> /tmp/signproxy
+    else
+      echo "using gpg secret key passphrase: [hidden]"
+      echo "${GPG} --batch --yes --no-tty --pinentry-mode loopback --no-use-agent --passphrase ${GPG_SECRET_KEY_PASSPHRASE} \"\$@\"" >> /tmp/signproxy
+    fi
+    #cat /tmp/signproxy
+    chmod a+x /tmp/signproxy
+    GPG="/tmp/signproxy"
+  fi
+  GPG_IMPORT_COMMAND="${GPG} ${GPG_IMPORT_COMMAND}"
+  eval "${GPG_IMPORT_COMMAND}"
   CAN_SIGN="true"
 fi
 
@@ -50,15 +77,16 @@ else
       SIGN_RESULTS=""
       DPKG_SIGN_ARG="-uc"
   else
-      SIGN_RESULTS="--sign-results"
-      DPKG_SIGN_ARG=""
+      SIGN_RESULTS="--sign-results --gpg-proxy=${GPG}"
+      DPKG_SIGN_ARG="--sign-command=${GPG}"
   fi
 fi
 
 if [ -z "${STDEB3_SIGN_KEY}" ]; then
-  SIGN_KEY=""
+  echo ""
 else
-  SIGN_KEY="--sign-key=\"${STDEB3_SIGN_KEY}\""
+  SIGN_RESULTS="${SIGN_RESULTS} --sign-key=\"${STDEB3_SIGN_KEY}\""
+  DPKG_SIGN_ARG="${DPKG_SIGN_ARG} --sign-key=\"${STDEB3_SIGN_KEY}\""
 fi
 
 
@@ -69,8 +97,8 @@ else
 fi
 
 
-echo "Running python3 ./setup.py --command-packages=stdeb3.command sdist_dsc ${SIGN_RESULTS} ${SIGN_KEY} ${EXTRA_ARGS}"
-python3 ./setup.py --command-packages=stdeb3.command sdist_dsc ${SIGN_RESULTS} ${SIGN_KEY} ${EXTRA_ARGS}
+echo "Running python3 ./setup.py --command-packages=stdeb3.command sdist_dsc ${SIGN_RESULTS} ${EXTRA_ARGS}"
+python3 ./setup.py --command-packages=stdeb3.command sdist_dsc ${SIGN_RESULTS} ${EXTRA_ARGS}
 
 if [ -d "./deb_dist" ]; then
   cd deb_dist
@@ -136,8 +164,11 @@ else
   cd ${DSC_DIR}
 fi
 
-echo "Running dpkg-buildpackage -rfakeroot -b ${DPKG_SIGN_ARG} ${SIGN_KEY}"
-dpkg-buildpackage -rfakeroot -b ${DPKG_SIGN_ARG} ${SIGN_KEY}
+
+
+PKG_COMMAND="dpkg-buildpackage -rfakeroot -b ${DPKG_SIGN_ARG}"
+eval "${PKG_COMMAND}"
+
 
 cd ..
 ls -lah
