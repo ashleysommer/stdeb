@@ -14,9 +14,14 @@ fi
 source /etc/os-release
 if [ -z "${ID}" -o -z "${VERSION_ID}" ]; then
   echo "/etc/os-release does not provide \$ID or \$VERSION_ID. Using fallbacks."
-  ID="debian"
-  VERSION_ID="8"
+  cat /etc/os-release
+  if [ -z "${VERSION_CODENAME}" ]; then
+      MY_SUFFIX="unknown"
+  else
+      MY_SUFFIX="${VERSION_CODENAME}"
+  fi
 else
+  MY_SUFFIX="${ID}-${VERSION_ID}"
   echo "Running on ${ID} ${VERSION_ID}"
 fi
 T1=$(touch "${OUT_DIR}/t1")
@@ -183,7 +188,7 @@ fi
 DEB_FILE_LEN=${#DEB_FILE}
 DEB_FILE_NAME_LEN=$(expr $DEB_FILE_LEN - 4)
 DEB_FILE_NAME=${DEB_FILE:0:DEB_FILE_NAME_LEN}
-cp -f "${DEB_FILE}" "${OUT_DIR}/${DEB_FILE_NAME}+${ID}-${VERSION_ID}.deb"
+cp -f "${DEB_FILE}" "${OUT_DIR}/${DEB_FILE_NAME}+${MY_SUFFIX}.deb"
 
 BUILT_FILES=$(find -mindepth 1 -maxdepth 1 -type f -iname "${BUILT_PROJ_NAME}*" | sed 's|^\./||')
 read -rd '' -a BUILT_FILES_A <<<"${BUILT_FILES}"
