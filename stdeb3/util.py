@@ -21,7 +21,7 @@ __all__ = ['DebianInfo','build_dsc','expand_tarball','expand_zip',
 
 DH_COMPAT_LEVEL = '9'
 DH_MINIMUM_VERS = '9.20150101'
-
+DEB_STANDARDS_VERS = '3.9.8'
 PYTHON_ALL_MIN_VERS = '2.7.9-1'  # This is the version in Debian Jessie (oldstable)
 PYTHON3_ALL_MIN_VERS = '3.4.2-2'  # This is the version in Debian Jessie (oldstable)
 
@@ -129,6 +129,7 @@ stdeb_cfg_options = [
     ('upstream-version-prefix=',None,'upstream version prefix'),
     ('upstream-version-suffix=',None,'upstream version suffix'),
     ('uploaders=',None,'uploaders'),
+    ('deb-standards-vers=',None,'debian/control Standards-Version'),
     ('copyright-file=',None,'copyright file'),
     ('news-file=',None,'upstream changelog, becomes debian/NEWS'),
     ('watch-rule=',None,'add a watch file with this rule to debian/watch'),
@@ -829,6 +830,10 @@ class DebianInfo:
         self.maintainer = ', '.join(parse_vals(cfg,module_name,'Maintainer'))
         self.uploaders = parse_vals(cfg,module_name,'Uploaders')
         self.changelog = parse_val(cfg,module_name,'Changelog')
+        standards_vers = parse_val(cfg, module_name, 'Deb-Standards-Vers')
+        if standards_vers == '':
+            standards_vers = DEB_STANDARDS_VERS
+        self.deb_standards_vers = standards_vers
         self.date822 = get_date_822()
 
         build_deps = ['dh-python']
@@ -1517,7 +1522,7 @@ Maintainer: %(maintainer)s
 %(uploaders)sSection: %(debian_section)s
 Priority: optional
 Build-Depends: %(build_depends)s
-Standards-Version: 3.9.8
+Standards-Version: %(deb_standards_vers)s
 %(homepage)s%(source_stanza_extras)s\
 %(control_py2_stanza)s\
 %(control_py3_stanza)s\
